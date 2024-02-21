@@ -1,71 +1,54 @@
-import { useSelector, useDispatch } from 'react-redux';
-import { useEffect } from 'react';
-import { toast } from 'react-toastify';
-import ContactForm from 'components/ContactForm';
-import Filter from 'components/Filter';
-import ContactList from 'components/ContactList';
-import Message from 'components/Message';
-import Loader from 'components/Loader';
-import { ToastWrapper } from 'components/ToastContainer/ToastContainer';
-import {
-  selectContactsItems,
-  selectIsLoading,
-  selectError,
-} from 'redux/contacts/selectors';
-import { fetchContacts } from 'redux/contacts/operations';
-import {
-  Container,
-  Section,
-  SectionsContainer,
-  Title,
-  SectionTitle,
-} from './App.styled';
+import { lazy, useEffect } from 'react';
+import { useDispatch } from 'react-redux';
+import { Route, Routes } from 'react-router-dom';
 
-function App() {
-  const contactsItems = useSelector(selectContactsItems);
-  const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectError);
+import { useAuth } from 'hooks/useAuth';
+import { refreshUser } from 'redux/auth/operations';
 
+import Layout from '../Layout/Layout';
+import PrivateRoute from '../PrivateRoute/PrivateRoute';
+import RestrictedRoute from '../RestrictedRoute/RestrictedRoute';
+
+const HomePage = lazy(() => import('Pages/Home/Home'));
+const RegisterPage = lazy(() => import('Pages/Register/Register'));
+const LoginPage = lazy(() => import('Pages/Login/Login'));
+const ContactsPage = lazy(() => import('Pages/Contacts/Contacts'));
+
+export const App = () => {
   const dispatch = useDispatch();
+  const { isRefreshing } = useAuth();
 
   useEffect(() => {
-    dispatch(fetchContacts());
+    dispatch(refreshUser());
   }, [dispatch]);
 
-  useEffect(() => {
-    if (error === 'ERR_BAD_REQUEST') {
-      toast.error('There are some problems! Try again later.');
-      return;
-    }
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
+  return isRefreshing ? (
+    <b>Refreshing user</b>
+  ) : (
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        <Route index element={<HomePage />} />
 
-  return (
-    <Container>
-      {isLoading && <Loader />}
-      <Title>Phonebook</Title>
-      <SectionsContainer>
-        <Section>
-          <SectionTitle>Add contact</SectionTitle>
-          <ContactForm />
-        </Section>
-        <Section>
-          <SectionTitle>Contacts</SectionTitle>
-          {contactsItems.length !== 0 ? (
-            <>
-              <Filter />
-              <ContactList />
-            </>
-          ) : (
-            <Message message="There are no contacts in your Phonebook. Please add your first contact!" />
-          )}
-        </Section>
-      </SectionsContainer>
-      <ToastWrapper />
-    </Container>
+        <Route
+          path="/register"
+          element={
+            <RestrictedRoute redirectTo="/login" component={<RegisterPage />} />
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <RestrictedRoute redirectTo="/contacts" component={<LoginPage />} />
+          }
+        />
+        <Route
+          path="/contacts"
+          element={
+            <PrivateRoute redirectTo="/login" component={<ContactsPage />} />
+          }
+        />
+        <Route path="*" element={<HomePage />} />
+      </Route>
+    </Routes>
   );
-}
-
-export default App;
+};

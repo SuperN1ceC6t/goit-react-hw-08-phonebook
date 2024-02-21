@@ -1,109 +1,65 @@
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import { toast } from 'react-toastify';
-import { useDispatch, useSelector } from 'react-redux';
-import { selectContactsItems } from 'redux/contacts/selectors';
-import { saveContact } from 'redux/contacts/operations';
+import { useSelector, useDispatch } from 'react-redux';
 
-import {
-  StyledLabel,
-  StyledForm,
-  StyledInput,
-  StyledButton,
-} from './ContactForm.styled';
+import { selectContactsList } from 'redux/constacts/selectors';
+import { addContact } from 'redux/constacts/operations';
 
-const nameRegex = /^[a-zA-Zа-яА-Я]+(([' -][a-zA-Zа-яА-Я ])?[a-zA-Zа-яА-Я]*)*$/;
-
-const numberRegex =
-  /\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}/;
-
-const schema = yup.object().shape({
-  name: yup
-    .string()
-    .trim()
-    .max(64)
-    .required('Name is required')
-    .matches(nameRegex, {
-      message:
-        "Invalid name. Name may contain only letters, apostrophe, dash and spaces. For example Adrian, Jacob Mercer, Charles de Batz de Castelmore d'Artagnan.",
-    }),
-
-  number: yup
-    .string()
-    .trim()
-    .required('Number is required')
-    .min(5)
-    .matches(numberRegex, {
-      message:
-        'Invalid number. Phone number must be digits and can contain spaces, dashes, parentheses and can start with +.',
-    }),
-});
-
-function ContactForm() {
+import { Form, Input, Label, Button } from './ContactForm.module';
+export const ContactForm = () => {
   const dispatch = useDispatch();
-  const contactsItems = useSelector(selectContactsItems);
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    formState,
-  } = useForm({
-    defaultValues: {
-      name: '',
-      number: '',
-    },
-    resolver: yupResolver(schema),
-    mode: 'onTouched',
-  });
+  const contacts = useSelector(selectContactsList);
 
-  useEffect(() => {
-    if (formState.isSubmitSuccessful) {
-      reset();
-    }
-  }, [formState.isSubmitSuccessful, reset]);
+  const handleSubmit = e => {
+    e.preventDefault();
 
-  const addNewContact = data => {
-    const normalizedName = data.name.toLowerCase();
-
-    if (
-      contactsItems.find(item => item.name.toLowerCase() === normalizedName)
-    ) {
-      return toast.info(`${data.name} is already in contacts!`);
+    const form = e.target;
+    const formName = e.target.elements.name.value;
+    const formNumber = e.target.elements.number.value;
+    if (contacts.some(({ name }) => name === formName)) {
+      return alert(`${formName} is already in contacts`);
     }
 
-    dispatch(saveContact(data));    
+    if (contacts.some(({ number }) => number === formNumber)) {
+      return alert(`${formNumber} is already in contacts`);
+    }
+
+    dispatch(addContact({ name: formName, number: formNumber.toString() }))
+      .unwrap()
+      .then(originalPromiseResult => {
+        console.log(
+          `${originalPromiseResult.name} successfully added to contacts`
+        );
+      })
+      .catch(() => {
+        console.log("Sorry, something's wrong");
+      });
+
+    form.reset();
   };
 
   return (
-    <StyledForm onSubmit={handleSubmit(addNewContact)}>
-      <StyledLabel>
+    <Form onSubmit={handleSubmit} autoComplete="off">
+      <Label>
         Name
-        <StyledInput
+        <Input
           type="text"
-          placeholder="Enter a contact name"
-          autoComplete="off"
-          {...register('name')}
+          name="name"
+          title="Name may contain only letters, apostrophe, dash and spaces. For example Adrian, Jacob Mercer, Charles de Batz de Castelmore d'Artagnan"
+          required
+          placeholder="Enter name ..."
+          value={contacts.name}
         />
-        {errors.name && <div>{errors.name?.message}</div>}
-      </StyledLabel>
-
-      <StyledLabel>
+      </Label>
+      <Label>
         Number
-        <StyledInput
+        <Input
           type="tel"
-          placeholder="Enter a contact number"
-          autoComplete="off"
-          {...register('number')}
+          name="number"
+          title="Phone number must be digits and can contain spaces, dashes, parentheses and can start with +"
+          placeholder="Enter number ..."
+          value={contacts.number}
         />
-        {errors.number && <div>{errors.number?.message}</div>}
-      </StyledLabel>
-
-      <StyledButton type="submit" />
-    </StyledForm>
+      </Label>
+      <Button type="submit">New contact</Button>
+    </Form>
   );
-}
-
-export default ContactForm;
+};
